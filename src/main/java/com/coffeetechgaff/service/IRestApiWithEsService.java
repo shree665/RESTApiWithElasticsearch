@@ -3,6 +3,8 @@ package com.coffeetechgaff.service;
 import com.coffeetechgaff.enums.Operation;
 import com.coffeetechgaff.model.EsMetadata;
 
+import java.io.IOException;
+
 import javax.ws.rs.core.Response;
 
 /**
@@ -13,5 +15,6 @@ public interface IRestApiWithEsService {
     Response sendMessageToKafka(EsMetadata metadata, Operation operation);
     Response deleteMetadata(String id);
     Response retrieveMetadata(String payload);
-    Response createEsRangeQuery(String startDateTime, String endDateTime, String fieldName);
+    Response createEsRangeQuery(String startDateTime, String endDateTime, String fieldName) throws IOException;
+    Response updateMetdata(EsMetadata metadata) throws IOException;
 }

@@ -8,6 +8,11 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * 
+ * @author VivekSubedi
+ *
+ */
 public class EnvPropertyReader {
 	
 	private static final Logger logger = LoggerFactory.getLogger(EnvPropertyReader.class);

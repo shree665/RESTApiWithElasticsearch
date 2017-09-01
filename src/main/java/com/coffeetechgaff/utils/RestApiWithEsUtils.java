@@ -1,5 +1,6 @@
 package com.coffeetechgaff.utils;
 
+import com.coffeetechgaff.enums.ValidateAttributeEnums;
 import com.coffeetechgaff.model.EsMetadata;
 import com.coffeetechgaff.system.EnvProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,7 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.core.Response;
 
 /**
  * Created by VivekSubedi on 8/23/17.
@@ -27,6 +32,7 @@ public class RestApiWithEsUtils {
     public static final String HITS = "hits";
     public static final String SOURCE = "source";
     public static final String TYPE = "type";
+    public static final String RESPONSE = "Response";
     public static final String ID = "id";
     public static final String STATUS = "status";
     public static final String GOLD = "gold";
@@ -89,6 +95,10 @@ public class RestApiWithEsUtils {
 	public static final String BROKERLIST = KAFKAIP + ":" + KAFKAPORT;
 
     private static ObjectMapper mapper = new ObjectMapper();
+    
+    private RestApiWithEsUtils() {
+    		//private constructor
+    }
 
 
     public static List<EsMetadata> parseDataSourceJson(SearchResponse response) throws IOException{
@@ -117,4 +127,66 @@ public class RestApiWithEsUtils {
         return metaDataList;
 
     }
+    
+    /**
+	 * Maps JSON payload to @ElasticSearchDataSourceMetadata POJO and validates
+	 * each attributes of the POJO
+	 * 
+	 * @param metadata
+	 *            - JSON in String
+	 * @return @Map of attribute and its value
+	 */
+	public static Map<String, Object> getCleanedAttributes(EsMetadata metadata){
+
+		Map<String, Object> attributeMap = new HashMap<>();
+
+		// Filters out fields from JSON object and puts them into a map if
+		// not null or empty
+		ValidateAttributeEnums[] attributes = ValidateAttributeEnums.values();
+		for(ValidateAttributeEnums validateAttributesEnums : attributes){
+			if(logger.isInfoEnabled()){
+				logger.info("Clean attribute {}  -- {}", validateAttributesEnums.toString(),
+						validateAttributesEnums.validate(metadata));
+			}
+
+			attributeMap.putAll(validateAttributesEnums.validate(metadata));
+		}
+		return attributeMap;
+
+	}
+	
+	public static Map<String, Object> getFinalCleanedMetadata(String payload){
+		// converting payload to our pojo
+
+		logger.info("getFinalCleanedMetadata payload {}", payload);
+		Map<String, Object> responseMap = new HashMap<>();
+		EsMetadata rawMetadata = null;
+		try{
+			rawMetadata = mapper.readValue(payload, EsMetadata.class);
+		}catch(IOException e1){
+			logger.error("getFinalCleanedMetadata Parse error {}", e1.getMessage(), e1);
+			responseMap.put(RESPONSE, Response.serverError().entity("Something went wrong while parsing payload").build());
+			return responseMap;
+		}
+
+		// validating our metadata
+		Map<String, Object> attributeMap = getCleanedAttributes(rawMetadata);
+
+		Map<String, Object> newAttributeMap = new HashMap<>(attributeMap);
+		newAttributeMap.remove(SOURCE_FIELD_CREATION_DATE);
+		newAttributeMap.remove(SOURCE_FIELD_LAST_UPDATED);
+
+		// checking if the attributeMap is empty or not. AttributeMap sholdn't
+		// be empty or null
+		if(newAttributeMap.isEmpty()){
+			responseMap.put(RESPONSE, Response.serverError().entity("Payload mapping error").build());
+			return responseMap;
+		}
+
+		// convert the validated map to the meatadata object
+		EsMetadata metadata = mapper.convertValue(attributeMap, EsMetadata.class);
+		responseMap.put("metadata", metadata);
+
+		return responseMap;
+	}
 }
