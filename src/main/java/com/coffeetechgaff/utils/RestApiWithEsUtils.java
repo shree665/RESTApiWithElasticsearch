@@ -1,6 +1,8 @@
 package com.coffeetechgaff.utils;
 
+import com.coffeetechgaff.enums.ValidateAttributeEnums;
 import com.coffeetechgaff.model.EsMetadata;
+import com.coffeetechgaff.system.EnvProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.elasticsearch.action.search.SearchResponse;
 import org.json.JSONArray;
@@ -10,7 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import javax.ws.rs.core.Response;
 
 /**
  * Created by VivekSubedi on 8/23/17.
@@ -22,16 +28,15 @@ public class RestApiWithEsUtils {
 
     public static final String ES_INDEX = "testdata";
     public static final String DOCUMENT_TYPE = "testdoc";
-    public static final String ES_CLUSTER_NAME= "elasticsearch";
-    public static final String ES_IP = "localhost";
     public static final String TRANSPORT_PORT = "9300";
-    public static final String ESPAGESIZE = "1000";
     public static final String HITS = "hits";
     public static final String SOURCE = "source";
     public static final String TYPE = "type";
+    public static final String RESPONSE = "Response";
     public static final String ID = "id";
     public static final String STATUS = "status";
     public static final String GOLD = "gold";
+    public static final String DELETED = "deleted";
     public static final String SOURCE_TYPE_KAFKA = "kafka";
     public static final String SOURCE_TYPE_OGC = "ogc";
     public static final String SOURCE_TYPE_S3 = "s3";
@@ -71,8 +76,29 @@ public class RestApiWithEsUtils {
     public static final String SOURCE_OGC_STORE_DATASOURCE_ID = "storeDataSourceId";
     public static final String SOURCE_OGC_STORE_WORKSPACE = "storeWorkspace";
     public static final String SOURCE_OGC_STORE_LAYERNAME = "storeLayerName";
+    
+    public static final String ES_IP = EnvProperty.getInstance().getEnvVar("ES_IP");
+	public static final String ES_TRANSPORT_PORT = EnvProperty.getInstance().getEnvVar("ES_TRANSPORT_PORT");
+	public static final String ES_CLUSTER_NAME = EnvProperty.getInstance().getEnvVar("ES_CLUSTER_NAME");
+	public static final String ES_METADATA_INDEX_NAME = EnvProperty.getInstance().getEnvVar(
+			"ES_METADATA_INDEX_NAME");
+	public static final String ES_METADATA_DOCUMENT_TYPE = EnvProperty.getInstance().getEnvVar(
+			"ES_METADATA_DOCUMENT_TYPE");
+	public static final String ESPAGESIZE = EnvProperty.getInstance().getEnvVar("ES_PAGE_SIZE");
+	public static final String PATH_HOME = "path.home";
+	public static final String CLUSTER_NAME = "cluster.name";
+
+	// Kafka constant variables
+	public static final String KAFKAIP = EnvProperty.getInstance().getEnvVar("KAFKA_IP");
+	public static final String KAFKAPORT = EnvProperty.getInstance().getEnvVar("KAFKA_PORT");
+	public static final String TOPIC = EnvProperty.getInstance().getEnvVar("KAFKA_TOPIC");
+	public static final String BROKERLIST = KAFKAIP + ":" + KAFKAPORT;
 
     private static ObjectMapper mapper = new ObjectMapper();
+    
+    private RestApiWithEsUtils() {
+    		//private constructor
+    }
 
 
     public static List<EsMetadata> parseDataSourceJson(SearchResponse response) throws IOException{
@@ -101,4 +127,66 @@ public class RestApiWithEsUtils {
         return metaDataList;
 
     }
+    
+    /**
+	 * Maps JSON payload to @ElasticSearchDataSourceMetadata POJO and validates
+	 * each attributes of the POJO
+	 * 
+	 * @param metadata
+	 *            - JSON in String
+	 * @return @Map of attribute and its value
+	 */
+	public static Map<String, Object> getCleanedAttributes(EsMetadata metadata){
+
+		Map<String, Object> attributeMap = new HashMap<>();
+
+		// Filters out fields from JSON object and puts them into a map if
+		// not null or empty
+		ValidateAttributeEnums[] attributes = ValidateAttributeEnums.values();
+		for(ValidateAttributeEnums validateAttributesEnums : attributes){
+			if(logger.isInfoEnabled()){
+				logger.info("Clean attribute {}  -- {}", validateAttributesEnums.toString(),
+						validateAttributesEnums.validate(metadata));
+			}
+
+			attributeMap.putAll(validateAttributesEnums.validate(metadata));
+		}
+		return attributeMap;
+
+	}
+	
+	public static Map<String, Object> getFinalCleanedMetadata(String payload){
+		// converting payload to our pojo
+
+		logger.info("getFinalCleanedMetadata payload {}", payload);
+		Map<String, Object> responseMap = new HashMap<>();
+		EsMetadata rawMetadata = null;
+		try{
+			rawMetadata = mapper.readValue(payload, EsMetadata.class);
+		}catch(IOException e1){
+			logger.error("getFinalCleanedMetadata Parse error {}", e1.getMessage(), e1);
+			responseMap.put(RESPONSE, Response.serverError().entity("Something went wrong while parsing payload").build());
+			return responseMap;
+		}
+
+		// validating our metadata
+		Map<String, Object> attributeMap = getCleanedAttributes(rawMetadata);
+
+		Map<String, Object> newAttributeMap = new HashMap<>(attributeMap);
+		newAttributeMap.remove(SOURCE_FIELD_CREATION_DATE);
+		newAttributeMap.remove(SOURCE_FIELD_LAST_UPDATED);
+
+		// checking if the attributeMap is empty or not. AttributeMap sholdn't
+		// be empty or null
+		if(newAttributeMap.isEmpty()){
+			responseMap.put(RESPONSE, Response.serverError().entity("Payload mapping error").build());
+			return responseMap;
+		}
+
+		// convert the validated map to the meatadata object
+		EsMetadata metadata = mapper.convertValue(attributeMap, EsMetadata.class);
+		responseMap.put("metadata", metadata);
+
+		return responseMap;
+	}
 }

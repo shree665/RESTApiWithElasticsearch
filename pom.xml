@@ -7,7 +7,7 @@
     <groupId>restapiwithes</groupId>
     <artifactId>restapiwithes</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Subedi Elasticsearch Example</name>
+    <name>REST endpoint with Elasticsearch backend</name>
     <description>REST endpoont to retrieve data from Elasticsearch</description>
     <packaging>war</packaging>
 
@@ -18,6 +18,50 @@
         <swagger.version>1.5.0</swagger.version>
         <elasticsearch.version>5.5.0</elasticsearch.version>
         <powermock.version>1.7.1</powermock.version>
+        
+         <!-- Maven specific settings -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ssZ</maven.build.timestamp.format>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
+
+        <!-- Unit testing -->
+        <test.args>-Xms256m -Xmx1024m</test.args>
+
+        <!-- Sonar reporting -->
+        <sonar.language>java</sonar.language>
+        <sonar.jacoco.reportPath>${jacoco.ut.reportPath}</sonar.jacoco.reportPath>
+        <sonar.jacoco.itReportPath>${jacoco.it.reportPath}</sonar.jacoco.itReportPath>
+        <sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
+        <sonar.issue.ignore.allfile>e2</sonar.issue.ignore.allfile>
+        <sonar.issue.ignore.allfile.e2.fileRegexp>@javax\.annotation\.Generated</sonar.issue.ignore.allfile.e2.fileRegexp>
+        <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
+        <!-- jacoco reporting -->
+        <jacoco.it.reportPath>${project.build.directory}/coverage-reports/jacoco-it.exec</jacoco.it.reportPath>
+        <jacoco.ut.reportPath>${project.build.directory}/coverage-reports/jacoco-ut.exec</jacoco.ut.reportPath>
+        <jacoco.version>0.7.9</jacoco.version>
+        <jacoco.failsafe.argline/>
+
+        <!-- The following are only ever used in the -P generate-coverage-report
+            profile -->
+        <it.reportPath>${project.reporting.outputDirectory}/jacoco-it</it.reportPath>
+        <ut.reportPath>${project.reporting.outputDirectory}/jacoco-ut</ut.reportPath>
+
+        <!-- findbugs -->
+        <findbugs.version>3.0.1</findbugs.version>
+        <findbugs.omitVisitors>MutableStaticFields,FindReturnRef</findbugs.omitVisitors>
+        <findbugs.effort>Max</findbugs.effort>
+        <findbugs.threshold>Medium</findbugs.threshold>
+        <findbugs.failOnError>true</findbugs.failOnError>
+        <findbugs.filterFile>findbugs-exclude-generated.xml</findbugs.filterFile>
+        <!-- Drools integration -->
+        <drools.version>6.5.0.Final</drools.version>
+        <docker.plugin.version>0.18.1</docker.plugin.version>
+
+        <!--NOTE: Please do not modify below. Ask Cedar for modification. -->
+        <!-- Maven Release -->
+        <release.arguments></release.arguments>
+        <!-- End of NOTE -->
     </properties>
 
     <dependencies>
@@ -200,45 +244,6 @@
 
     <profiles>
         <profile>
-            <id>generate-swagger</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>com.github.kongchen</groupId>
-                        <artifactId>swagger-maven-plugin</artifactId>
-                        <version>3.1.4</version>
-                        <configuration>
-                            <apiSources>
-                                <apiSource>
-                                    <springmvc>false</springmvc>
-                                    <locations>com.bah.na.asc.datasource.resource</locations>
-                                    <schemes>http,https</schemes>
-                                    <host>www.192.168.99.100:8080</host>
-                                    <basePath>/restapiwithes/</basePath>
-                                    <info>
-                                        <title>Swagger spec for Data Source Storage API</title>
-                                        <version>1.0</version>
-                                        <description>Swagger spec for Data Source Storage API</description>
-                                    </info>
-                                    <swaggerDirectory>src/main/swagger/</swaggerDirectory>
-                                    <attachSwaggerArtifact>true</attachSwaggerArtifact>
-                                </apiSource>
-                            </apiSources>
-                        </configuration>
-                        <executions>
-                            <execution>
-                                <phase>compile</phase>
-                                <goals>
-                                    <goal>generate</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-
-        <profile>
             <id>build-docker</id>
             <properties>
                 <docker.container.name>asc-dataapi</docker.container.name>
@@ -253,7 +258,8 @@
                         <configuration>
                             <images>
                                 <image>
-                                    <alias>${docker.container.name}</alias>
+                                		<name>restapiwithes:1.0</name>
+                                    <alias>restapiwithes</alias>
                                     <!-- Configure build settings -->
                                     <build>
                                         <dockerFileDir>${project.basedir}/docker</dockerFileDir>
@@ -263,7 +269,7 @@
                                                 <files>
                                                     <file>
                                                         <source>
-                                                           /target/build/restapiwithes-${project.version}.war
+                                                           /target/build/restapiwithes-1.0.war
                                                         </source>
                                                         <outputDirectory>webapps/</outputDirectory>
                                                         <destName>restapiwithes.war</destName>
@@ -292,20 +298,9 @@
             </build>
         </profile>
     </profiles>
-
-    <build>
-        <finalName>restapiwithes-1.0</finalName>
+	<build>
+		<finalName>restapiwithes-1.0</finalName>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.5.1</version>
-                <configuration>
-                    <!-- or whatever version you use -->
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
@@ -315,7 +310,7 @@
                     <failOnMissingWebXml>false</failOnMissingWebXml>
                     <archive>
                         <manifestEntries>
-                            <Specification-Title>GitHib</Specification-Title>
+                            <Specification-Title>GitHub</Specification-Title>
                             <Specification-Vendor>Vivek Subedi</Specification-Vendor>
                             <Specification-Version>1.0</Specification-Version>
                             <Implementation-Title>subedi.coffeetechgaff.com</Implementation-Title>
@@ -327,7 +322,15 @@
                     <classesClassifier>classes</classesClassifier>
                 </configuration>
             </plugin>
+        		 <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
         </plugins>
-    </build>
-
+	</build>
 </project>

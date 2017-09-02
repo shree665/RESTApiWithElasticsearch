@@ -4,7 +4,10 @@
         <wb-resource deploy-path="/" source-path="/src/main/webapp" tag="defaultRootSource"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/java"/>
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/main/resources"/>
+<<<<<<< HEAD
         <wb-resource deploy-path="/WEB-INF/classes" source-path="/src/test/java"/>
+=======
+>>>>>>> 7ab5127de4e514b03749348089153eccac3f15c2
         <property name="context-root" value="restapiwithes-1.0"/>
         <property name="java-output-path" value="/RestApiWithES/build/classes"/>
     </wb-module>
